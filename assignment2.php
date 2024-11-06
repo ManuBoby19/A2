@@ -5,14 +5,11 @@ $username = "root";
 $password = "rootPass@2024";
 $dbname = "news_db";
 
-
 $conn = mysqli_connect($host, $username, $password, $dbname);
 
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
 }
-
-
 
 $sql = "SELECT title, content, date_published FROM news ORDER BY date_published DESC";
 $result = $conn->query($sql);
@@ -42,64 +39,55 @@ $result = $conn->query($sql);
         <h1>Latest News</h1>
         
         <?php
-    
         if ($result->num_rows > 0) {
             while($row = $result->fetch_assoc()) {
                 echo "<div class='news-item'>";
-                echo "<div class='news-title'>" . $row["title"] . "</div>";
-                echo "<div class='news-date'>Published on: " . $row["date_published"] . "</div>";
-                echo "<div class='news-content'>" . $row["content"] . "</div>";
+                echo "<div class='news-title'>" . htmlspecialchars($row["title"]) . "</div>";
+                echo "<div class='news-date'>Published on: " . htmlspecialchars($row["date_published"]) . "</div>";
+                echo "<div class='news-content'>" . htmlspecialchars($row["content"]) . "</div>";
                 echo "</div>";
             }
         } else {
             echo "<p>No news available.</p>";
         }
         ?>
-
     
-        <div class="form-container" >
+        <div class="form-container">
             <h2>Add New News Article</h2>
-            <form method="POST" action="assignment2.php">
+            <form method="POST" action="">
                 <input type="text" name="title" placeholder="News Title" required>
                 <textarea name="content" rows="4" placeholder="News Content" required></textarea>
                 <button type="submit">Submit</button>
             </form>
         </div>
-<?php
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    if (isset($_POST["title"]) && isset($_POST["content"])) {
-        $title = $_POST["title"];
-        $content = $_POST["content"];
-        $date_published = date("Y-m-d");
+        <?php
+        if ($_SERVER["REQUEST_METHOD"] == "POST") {
+            if (!empty($_POST["title"]) && !empty($_POST["content"])) {
+                $title = $_POST["title"];
+                $content = $_POST["content"];
+                $date_published = date("Y-m-d");
 
-        
-        $sql = "INSERT INTO news (title, content, date_published) VALUES ('$title', '$content', '$date_published')";
+                // Use prepared statement to prevent SQL injection
+                $stmt = $conn->prepare("INSERT INTO news (title, content, date_published) VALUES (?, ?, ?)");
+                $stmt->bind_param("sss", $title, $content, $date_published);
 
-        if ($conn->query($sql) === TRUE) {
-            echo "<p style='color: green;'>New article added successfully!</p>";
-            
-        
-            header("assignement2.php" . $_SERVER['PHP_SELF']);
-            exit;
-        } else {
-            echo "<p style='color: red;'>Error: " . $sql . "<br>" . $conn->error . "</p>";
+                if ($stmt->execute()) {
+                    echo "<p style='color: green;'>New article added successfully!</p>";
+                    header("Location: " . $_SERVER['PHP_SELF']);
+                    exit;
+                } else {
+                    echo "<p style='color: red;'>Error: " . $stmt->error . "</p>";
+                }
+                
+                $stmt->close();
+            } else {
+                echo "<p style='color: red;'>Please fill out all required fields.</p>";
+            }
         }
-    } else {
-        echo "<p style='color: red;'>Please fill out all required fields.</p>";
-    }
-}
 
-
-?>
-  
-
+        $conn->close();
+        ?>
     </div>
 </body>
 </html>
-
-<?php
-
-$conn->close();
-?>
